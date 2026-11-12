@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#070b12">
+  <meta name="description" content="MR RONY RACING — a high speed 3D motorcycle highway challenge.">
+  <title>MR RONY RACING</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <main id="game" aria-label="MR RONY RACING">
+    <div id="viewport" aria-label="3D motorcycle racing game"></div>
+
+    <header class="hud-top" id="hudTop" aria-hidden="true">
+      <div class="brand-small"><span class="brand-mark">MR</span><span>RONY <b>RACING</b></span></div>
+      <div class="hud-actions">
+        <button class="icon-button" id="soundButton" type="button" aria-label="Turn sound off" title="Sound">♪</button>
+        <button class="icon-button" id="pauseButton" type="button" aria-label="Pause game" title="Pause">Ⅱ</button>
+      </div>
+    </header>
+
+    <section class="race-hud" id="raceHud" aria-hidden="true">
+      <div class="readout"><span class="readout-label">SPEED</span><div class="speed-line"><strong id="speedValue">000</strong><span>KM/H</span></div><div class="speed-track"><i id="speedBar"></i></div></div>
+      <div class="race-stats"><div><span>DISTANCE</span><b><i id="distanceValue">0</i><small> KM</small></b></div><div><span>SCORE</span><b id="scoreValue">000000</b></div></div>
+    </section>
+
+    <div class="toast" id="toast" aria-live="polite"></div>
+
+    <nav class="controls" id="controls" aria-label="Riding controls" aria-hidden="true">
+      <div class="steering-controls">
+        <button class="control-button steer" id="leftButton" type="button" aria-label="Steer left"><span>‹</span><small>LEFT</small></button>
+        <button class="control-button steer" id="rightButton" type="button" aria-label="Steer right"><span>›</span><small>RIGHT</small></button>
+      </div>
+      <div class="pedal-controls">
+        <button class="control-button brake" id="brakeButton" type="button" aria-label="Brake"><span>■</span><small>BRAKE</small></button>
+        <button class="control-button accelerate" id="accelerateButton" type="button" aria-label="Accelerate"><span>▲</span><small>ACCELERATE</small></button>
+      </div>
+    </nav>
+
+    <section class="screen loading-screen" id="loadingScreen" aria-live="polite">
+      <div class="loader-emblem">MR<span>R</span></div><p>STARTING THE ENGINE</p>
+      <div class="loader-track"><i></i></div>
+    </section>
+
+    <section class="screen menu-screen" id="menuScreen" aria-hidden="true">
+      <div class="menu-content">
+        <div class="eyebrow"><i></i> HIGHWAY DOMINATION</div>
+        <h1>MR RONY<br><span>RACING</span></h1>
+        <p class="menu-copy">Own the open road.<br>Ride fast. Stay sharp. Beat your record.</p>
+        <div class="difficulty-picker" role="group" aria-label="Select difficulty">
+          <button type="button" data-difficulty="rookie" aria-pressed="false"><b>ROOKIE</b><small>RELAXED RIDE</small></button>
+          <button type="button" data-difficulty="pro" aria-pressed="true"><b>PRO</b><small>FULL THROTTLE</small></button>
+          <button type="button" data-difficulty="elite" aria-pressed="false"><b>ELITE</b><small>NO MERCY</small></button>
+        </div>
+        <button class="primary-button" id="playButton" type="button"><span>PLAY NOW</span><b>↗</b></button>
+        <div class="personal-best">PERSONAL BEST <b id="menuBest">000000</b></div>
+      </div>
+      <div class="menu-footer"><span>TOUCH CONTROLS READY</span><span>WEBGL · 3D HIGHWAY</span></div>
+    </section>
+
+    <section class="screen pause-screen hidden" id="pauseScreen" aria-hidden="true">
+      <div class="modal-card">
+        <div class="eyebrow"><i></i> RIDE ON HOLD</div><h2>PAUSED<span>.</span></h2>
+        <p>Catch your breath. The road is waiting.</p>
+        <button class="primary-button" id="resumeButton" type="button"><span>RESUME RIDE</span><b>▶</b></button>
+        <button class="text-button" id="quitButton" type="button">BACK TO GARAGE</button>
+      </div>
+    </section>
+
+    <section class="screen gameover-screen hidden" id="gameoverScreen" aria-hidden="true">
+      <div class="modal-card">
+        <div class="eyebrow danger"><i></i> RIDE ENDED</div><h2>WIPEOUT<span>.</span></h2>
+        <p>That road got the better of you. Ready for another run?</p>
+        <div class="result-grid"><div><span>FINAL SCORE</span><b id="finalScore">000000</b></div><div><span>DISTANCE</span><b><i id="finalDistance">0.0</i><small> KM</small></b></div></div>
+        <div class="new-record hidden" id="newRecord">✦ NEW PERSONAL BEST ✦</div>
+        <button class="primary-button" id="againButton" type="button"><span>RACE AGAIN</span><b>↻</b></button>
+        <button class="text-button" id="garageButton" type="button">BACK TO GARAGE</button>
+      </div>
+    </section>
+
+    <section class="screen error-screen hidden" id="errorScreen" aria-live="assertive">
+      <div class="modal-card"><div class="eyebrow danger"><i></i> GRAPHICS ERROR</div><h2>CAN'T<br>START<span>.</span></h2><p id="errorMessage">Your browser could not start WebGL.</p><button class="primary-button" id="errorRetry" type="button"><span>TRY AGAIN</span><b>↻</b></button></div>
+    </section>
+  </main>
+  <div class="developer-credit global-credit">DEVELOPER: MR RONY AHAMED</div>
+  <script type="module">
+    import('./game.js').catch((error) => {
+      console.error(error);
+      document.getElementById('loadingScreen').classList.add('hidden');
+      document.getElementById('errorScreen').classList.remove('hidden');
+      document.getElementById('errorScreen').setAttribute('aria-hidden', 'false');
+      document.getElementById('errorMessage').textContent = 'The 3D game could not load. Check your internet connection and try again.';
+      document.getElementById('errorRetry').addEventListener('click', () => location.reload(), { once: true });
+    });
+  </script>
+</body>
+</html>
