@@ -1,0 +1,26 @@
+{
+  "name": "bike-racing-game",
+  "version": "1.0.0",
+  "description": "A mobile-friendly 3D motorcycle highway game built with HTML, CSS, JavaScript, and Three.js. The bike, rider, road, roadside scenery, traffic, engine, music, and effects are created procedurally; the only runtime dependency is Three.js from jsDelivr.",
+  "main": "game.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ronyahammed6675-create/-mr-rony-racing.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ronyahammed6675-create/-mr-rony-racing/issues"
+  },
+  "homepage": "https://github.com/ronyahammed6675-create/-mr-rony-racing#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2"
+  }
+}
