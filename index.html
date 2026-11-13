@@ -25,7 +25,7 @@
 
     <section class="race-hud" id="raceHud" aria-hidden="true">
       <div class="readout"><span class="readout-label">SPEED</span><div class="speed-line"><strong id="speedValue">000</strong><span>KM/H</span></div><div class="speed-track"><i id="speedBar"></i></div></div>
-      <div class="race-stats"><div><span>DISTANCE</span><b><i id="distanceValue">0</i><small> KM</small></b></div><div><span>SCORE</span><b id="scoreValue">000000</b></div></div>
+      <div class="race-stats"><div><span>DISTANCE</span><b><i id="distanceValue">0</i><small> KM</small></b></div><div><span>STAGE</span><b id="stageValue">01 / 05</b></div><div><span>SCORE</span><b id="scoreValue">000000</b></div></div>
     </section>
 
     <div class="toast" id="toast" aria-live="polite"></div>
@@ -37,6 +37,7 @@
       </div>
       <div class="pedal-controls">
         <button class="control-button brake" id="brakeButton" type="button" aria-label="Brake"><span>■</span><small>BRAKE</small></button>
+        <button class="control-button nitro" id="nitroButton" type="button" aria-label="Nitro boost"><span>⚡</span><small>NITRO</small><i id="nitroBar"></i></button>
         <button class="control-button accelerate" id="accelerateButton" type="button" aria-label="Accelerate"><span>▲</span><small>ACCELERATE</small></button>
       </div>
     </nav>
@@ -51,6 +52,9 @@
         <div class="eyebrow"><i></i> HIGHWAY DOMINATION</div>
         <h1>MR RONY<br><span>RACING</span></h1>
         <p class="menu-copy">Own the open road.<br>Ride fast. Stay sharp. Beat your record.</p>
+        <div class="garage-picker"><div class="picker-label">RACE STAGE</div><div class="option-row" id="levelPicker" role="group" aria-label="Select race stage"></div></div>
+        <div class="garage-picker"><div class="picker-label">CHOOSE YOUR BIKE</div><div class="option-row bikes" id="bikePicker" role="group" aria-label="Select bike"></div></div>
+        <div class="garage-picker"><div class="picker-label">WEATHER</div><div class="option-row weather" id="weatherPicker" role="group" aria-label="Select weather"></div></div>
         <div class="difficulty-picker" role="group" aria-label="Select difficulty">
           <button type="button" data-difficulty="rookie" aria-pressed="false"><b>ROOKIE</b><small>RELAXED RIDE</small></button>
           <button type="button" data-difficulty="pro" aria-pressed="true"><b>PRO</b><small>FULL THROTTLE</small></button>

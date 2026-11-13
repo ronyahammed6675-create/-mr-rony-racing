@@ -14,6 +14,16 @@ const DIFFICULTIES = {
   pro: { maxSpeed: 205, spawnEvery: 1.32, label: 'PRO' },
   elite: { maxSpeed: 250, spawnEvery: 1.02, label: 'ELITE' }
 };
+const LEVELS = [
+  { name: 'COAST RUN', speed: 1, traffic: 1, weather: 'day' },
+  { name: 'DUSK RIDGE', speed: 1.05, traffic: 1.13, weather: 'day' },
+  { name: 'NIGHT SHIFT', speed: 1.1, traffic: 1.24, weather: 'night' },
+  { name: 'MONSOON', speed: 1.16, traffic: 1.36, weather: 'rain' },
+  { name: 'FINAL SPRINT', speed: 1.23, traffic: 1.5, weather: 'night' }
+];
+const BIKES = [
+  { name: 'FALCON', color: 0xf22635 }, { name: 'VOLT', color: 0x19bce1 }, { name: 'PHANTOM', color: 0xc8d1df }
+];
 const ROAD_WIDTH = 11;
 const LANES = [-3.25, 0, 3.25];
 const ROAD_LENGTH = 220;
@@ -22,6 +32,19 @@ const bestKey = 'mr-rony-racing-best-v1';
 let scene, camera, renderer, bike, bikeBody, headlight, bikeWheelMeshes = [];
 let state = 'loading';
 let difficulty = 'pro';
+let levelIndex = 0;
+let bikeIndex = 0;
+let weatherMode = 'day';
+let nitro = 1;
+let boosting = false;
+let bikePaint;
+let rain = null;
+let rainPositions = null;
+let rainMaterial = null;
+let nitroFlame = null;
+let crashParticles = null;
+let crashParticleVelocity = null;
+let crashParticleAge = 0;
 let speed = 0;
 let distance = 0;
 let score = 0;
@@ -81,8 +104,9 @@ function makeBike() {
   const tireSide = mat(0x262d35, 0.56, 0.24);
   const steel = mat(0x929da8, 0.34, 0.78);
   const darkMetal = mat(0x242c36, 0.4, 0.68);
-  const red = mat(0xf22635, 0.34, 0.4, { emissive: 0x42060b });
-  const redHi = mat(0xff3946, 0.3, 0.38, { emissive: 0x33050a });
+  const red = mat(BIKES[bikeIndex].color, 0.34, 0.4, { emissive: BIKES[bikeIndex].color, emissiveIntensity: .12 });
+  const redHi = mat(BIKES[bikeIndex].color, 0.3, 0.38, { emissive: BIKES[bikeIndex].color, emissiveIntensity: .08 });
+  bikePaint = [red, redHi];
   const black = mat(0x10141b, 0.5, 0.27);
   const carbon = mat(0x1c232b, 0.55, 0.42);
   const wheelZ = [-0.98, 1.02];
@@ -156,6 +180,9 @@ function makeBike() {
     leg.rotation.z = sign * .1;
   }
   bikeBody.add(rider);
+  const flameMaterial = new THREE.MeshBasicMaterial({ color: 0x39d9ff, transparent: true, opacity: .92 });
+  nitroFlame = new THREE.Mesh(new THREE.ConeGeometry(.18, .85, 8), flameMaterial);
+  nitroFlame.rotation.x = Math.PI / 2; nitroFlame.position.set(0, .72, 1.58); nitroFlame.visible = false; bikeBody.add(nitroFlame);
   const lamp = new THREE.SpotLight(0x9ceeff, 9, 47, Math.PI / 8, .5, 1.5);
   lamp.position.set(0, 1.22, -1.05); lamp.target.position.set(0, .2, -12); bike.add(lamp, lamp.target);
   scene.add(bike);
@@ -285,7 +312,89 @@ function init3D() {
   const rim = new THREE.PointLight(0x238fff, 25, 25, 2); rim.position.set(5, 3, 2); scene.add(rim);
   addScenery();
   makeBike();
+  createRain();
+  createCrashParticles();
+  applyWeather();
   window.addEventListener('resize', onResize, { passive: true });
+}
+
+function createCrashParticles() {
+  const count = 44;
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  crashParticleVelocity = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    colors.set([1, .28 + Math.random() * .32, .06], i * 3);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const material = new THREE.PointsMaterial({ size: .16, vertexColors: true, transparent: true, opacity: .95, depthWrite: false, blending: THREE.AdditiveBlending });
+  crashParticles = new THREE.Points(geometry, material);
+  crashParticles.visible = false; scene.add(crashParticles);
+}
+
+function burstCrashParticles() {
+  const positions = crashParticles.geometry.attributes.position.array;
+  for (let i = 0; i < positions.length; i += 3) {
+    positions[i] = bike.position.x; positions[i + 1] = .45 + Math.random() * .7; positions[i + 2] = bike.position.z;
+    crashParticleVelocity[i] = (Math.random() - .5) * 8;
+    crashParticleVelocity[i + 1] = 1 + Math.random() * 5;
+    crashParticleVelocity[i + 2] = (Math.random() - .5) * 5;
+  }
+  crashParticles.position.set(0, 0, 0);
+  crashParticles.geometry.attributes.position.needsUpdate = true;
+  crashParticles.material.opacity = .95; crashParticles.visible = true; crashParticleAge = 0;
+}
+
+function createRain() {
+  const count = innerWidth < 700 ? 180 : 420;
+  rainPositions = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    rainPositions[i * 3] = (Math.random() - .5) * 38;
+    rainPositions[i * 3 + 1] = Math.random() * 18;
+    rainPositions[i * 3 + 2] = Math.random() * -85;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(rainPositions, 3));
+  rainMaterial = new THREE.PointsMaterial({ color: 0x9dcced, size: .09, transparent: true, opacity: .55, depthWrite: false });
+  rain = new THREE.Points(geometry, rainMaterial); rain.visible = false; scene.add(rain);
+}
+
+function applyWeather() {
+  const mode = weatherMode;
+  const night = mode === 'night';
+  const wet = mode === 'rain';
+  const sky = night ? 0x07101e : wet ? 0x344553 : 0x829bb0;
+  scene.background.setHex(sky);
+  scene.fog.color.setHex(sky);
+  scene.fog.density = wet ? .012 : night ? .0095 : .0075;
+  if (rain) rain.visible = wet;
+  if (renderer) renderer.toneMappingExposure = night ? .86 : wet ? .92 : 1.18;
+}
+
+function refreshGarage() {
+  const addOptions = (id, values, selected, action) => {
+    const root = $(id); root.replaceChildren();
+    values.forEach((value, index) => {
+      const button = document.createElement('button'); button.type = 'button'; button.textContent = value.label;
+      button.setAttribute('aria-pressed', String(index === selected));
+      button.addEventListener('click', () => action(index)); root.append(button);
+    });
+  };
+  addOptions('levelPicker', ['COAST', 'RIDGE', 'NIGHT', 'RAIN', 'FINAL'].map(label => ({ label })), levelIndex, index => {
+    levelIndex = index; refreshGarage(); applyWeather();
+  });
+  addOptions('bikePicker', BIKES.map(bike => ({ label: bike.name })), bikeIndex, index => {
+    bikeIndex = index;
+    bikePaint?.forEach(material => { material.color.setHex(BIKES[index].color); material.emissive.setHex(BIKES[index].color); });
+    refreshGarage();
+  });
+  const weatherOptions = ['day', 'night', 'rain'];
+  addOptions('weatherPicker', weatherOptions.map(value => ({ label: value.toUpperCase() })), weatherOptions.indexOf(weatherMode), index => {
+    weatherMode = weatherOptions[index]; applyWeather(); refreshGarage();
+  });
+  $('stageValue').textContent = `0${levelIndex + 1} / 05`;
 }
 
 function onResize() {
@@ -324,11 +433,12 @@ function configureScreen(next) {
 }
 
 function spawnTraffic() {
-  const makeRoadObstacle = Math.random() < (difficulty === 'elite' ? .27 : difficulty === 'rookie' ? .12 : .2);
+  const level = LEVELS[levelIndex];
+  const makeRoadObstacle = Math.random() < Math.min(.4, (difficulty === 'elite' ? .27 : difficulty === 'rookie' ? .12 : .2) * level.traffic);
   const car = makeRoadObstacle ? makeObstacle() : makeCar([0xd52e40, 0x1f70a6, 0xd0d4db, 0xc98323][Math.floor(Math.random() * 4)]);
   const lane = Math.floor(Math.random() * LANES.length);
   car.position.set(LANES[lane], 0, -112 - Math.random() * 12);
-  const relative = difficulty === 'elite' ? .82 : difficulty === 'rookie' ? 1.08 : .94;
+  const relative = (difficulty === 'elite' ? .82 : difficulty === 'rookie' ? 1.08 : .94) / LEVELS[levelIndex].traffic;
   car.userData.speedFactor = relative + Math.random() * .14;
   car.userData.passed = false;
   scene.add(car);
@@ -360,8 +470,11 @@ function resetRun() {
   steerInput = 0;
   throttle = false;
   braking = false;
+  boosting = false; nitro = 1; nitroFlame.visible = false;
+  applyWeather();
   spawnClock = 0;
   crashClock = 0;
+  crashParticles.visible = false;
   crashRotation = 0;
   bike.position.set(0, 0, .1);
   bikeBody.rotation.set(0, 0, 0);
@@ -372,6 +485,8 @@ function resetRun() {
   ui.speedBar.style.width = '9%';
   ui.distance.textContent = '0.0';
   ui.score.textContent = formatScore(0);
+  $('stageValue').textContent = `0${levelIndex + 1} / 05`;
+  $('nitroBar').style.width = '100%';
 }
 
 function startGame() {
@@ -408,6 +523,7 @@ function crash() {
   ui.hudTop.classList.add('active'); ui.raceHud.classList.add('active');
   clearInputs();
   crashClock = 0;
+  burstCrashParticles();
   crashRotation = (Math.random() < .5 ? -1 : 1) * 1.18;
   playCrashSound();
   if (navigator.vibrate) navigator.vibrate([70, 35, 120]);
@@ -424,7 +540,7 @@ function finishCrash() {
 }
 
 function clearInputs() {
-  steerInput = 0; throttle = false; braking = false;
+  steerInput = 0; throttle = false; braking = false; boosting = false;
   document.querySelectorAll('.control-button.pressed').forEach(button => button.classList.remove('pressed'));
 }
 
@@ -491,6 +607,7 @@ function bindControls() {
   bindHold($('rightButton'), value => { steerInput = value ? 1 : (steerInput === 1 ? 0 : steerInput); });
   bindHold($('accelerateButton'), value => { throttle = value; });
   bindHold($('brakeButton'), value => { braking = value; });
+  bindHold($('nitroButton'), value => { boosting = value; });
 
   $('playButton').addEventListener('click', () => { if (!audio) createAudio(); audio?.ctx.resume(); startGame(); });
   $('againButton').addEventListener('click', () => { audio?.ctx.resume(); startGame(); });
@@ -524,12 +641,14 @@ function bindControls() {
     if (event.key === 'ArrowRight' || event.key.toLowerCase() === 'd') steerInput = 1;
     if (event.key === 'ArrowUp' || event.key.toLowerCase() === 'w' || event.key === ' ') throttle = true;
     if (event.key === 'ArrowDown' || event.key.toLowerCase() === 's') braking = true;
+    if (event.key.toLowerCase() === 'n' || event.key.toLowerCase() === 'shift') boosting = true;
   });
   document.addEventListener('keyup', event => {
     if (['ArrowLeft', 'a', 'A'].includes(event.key) && steerInput === -1) steerInput = 0;
     if (['ArrowRight', 'd', 'D'].includes(event.key) && steerInput === 1) steerInput = 0;
     if (['ArrowUp', ' ', 'w', 'W'].includes(event.key)) throttle = false;
     if (['ArrowDown', 's', 'S'].includes(event.key)) braking = false;
+    if (['n', 'N', 'Shift'].includes(event.key)) boosting = false;
   });
   window.addEventListener('blur', clearInputs);
   document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'playing') pauseGame(); });
@@ -537,10 +656,17 @@ function bindControls() {
 
 function updateGame(dt) {
   if (state === 'playing') {
-    const maxSpeed = DIFFICULTIES[difficulty].maxSpeed;
-    const targetSpeed = throttle ? maxSpeed : Math.max(55, speed - 8);
+    const maxSpeed = DIFFICULTIES[difficulty].maxSpeed * LEVELS[levelIndex].speed;
+    const canBoost = boosting && nitro > 0;
+    nitro = THREE.MathUtils.clamp(nitro + (canBoost ? -dt * .24 : dt * .085), 0, 1);
+    const targetSpeed = throttle || canBoost ? maxSpeed * (canBoost ? 1.2 : 1) : Math.max(55, speed - 8);
     speed += (targetSpeed - speed) * Math.min(1, dt * (throttle ? 1.08 : .34));
     if (braking) speed = Math.max(0, speed - 128 * dt);
+    if (canBoost) score += dt * 42;
+    nitroFlame.visible = canBoost;
+    nitroFlame.scale.setScalar(.8 + Math.random() * .6);
+    $('nitroButton').classList.toggle('pressed', canBoost);
+    $('nitroBar').style.width = `${nitro * 100}%`;
     if (!throttle && !braking && speed < 55) speed = Math.min(55, speed + 8 * dt);
     const travel = speed * dt * .075;
     distance += travel / 270;
@@ -554,14 +680,36 @@ function updateGame(dt) {
     moveWorld(travel);
     spawnClock += dt;
     const config = DIFFICULTIES[difficulty];
-    if (spawnClock >= config.spawnEvery) { spawnClock = 0; spawnTraffic(); }
+    if (spawnClock >= config.spawnEvery / LEVELS[levelIndex].traffic) { spawnClock = 0; spawnTraffic(); }
     updateTraffic(dt, travel);
     ui.speed.textContent = String(Math.round(speed)).padStart(3, '0');
     ui.speedBar.style.width = `${Math.min(100, speed / config.maxSpeed * 100)}%`;
     ui.distance.textContent = distance.toFixed(1);
     ui.score.textContent = formatScore(score);
+    if (rain?.visible) {
+      const positions = rain.geometry.attributes.position.array;
+      for (let i = 0; i < positions.length; i += 3) {
+        positions[i + 1] -= dt * (16 + speed * .07);
+        positions[i + 2] += travel * 1.5;
+        if (positions[i + 1] < 0 || positions[i + 2] > 10) { positions[i + 1] = 14 + Math.random() * 5; positions[i + 2] = -70 - Math.random() * 20; }
+      }
+      rain.geometry.attributes.position.needsUpdate = true;
+    }
   } else if (state === 'crashing') {
     crashClock += dt;
+    crashParticleAge += dt;
+    if (crashParticles.visible) {
+      const positions = crashParticles.geometry.attributes.position.array;
+      for (let i = 0; i < positions.length; i += 3) {
+        positions[i] += crashParticleVelocity[i] * dt;
+        positions[i + 1] += crashParticleVelocity[i + 1] * dt;
+        positions[i + 2] += crashParticleVelocity[i + 2] * dt;
+        crashParticleVelocity[i + 1] -= 7 * dt;
+      }
+      crashParticles.geometry.attributes.position.needsUpdate = true;
+      crashParticles.material.opacity = Math.max(0, 1 - crashParticleAge / .9);
+      if (crashParticleAge > .9) crashParticles.visible = false;
+    }
     const progress = Math.min(1, crashClock / 1.12);
     bikeBody.rotation.z = crashRotation * Math.sin(progress * Math.PI / 2);
     bikeBody.rotation.x = .24 * Math.sin(progress * Math.PI);
@@ -633,6 +781,7 @@ async function boot() {
   refreshBest();
   try {
     init3D();
+    refreshGarage();
     configureScreen('menu');
     ui.loading.classList.add('hidden');
     lastFrame = performance.now();
